@@ -51,7 +51,6 @@ pub fn generate_workout(intensity: u32, random_number: u32) {
     }
 }
 
-
 // struct Cacher<T> where T: Fn(u32) -> u32 {
 //     calculation: T,
 //     value: Option<u32>, // 有个问题就是，再也无法变更了，因此推荐使用hashmap
