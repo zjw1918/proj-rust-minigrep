@@ -8,8 +8,9 @@ use std::process;
 
 fn main() {
     println!("Hello, world >>>");
-    learn_minigrep();
-    // zjw_learn::run_learn_closure();
+    // learn_minigrep();
+    // zjw_learn::run_learn_closure(); // 2018-08-24 10:02:59 13 done
+    zjw_learn::run_learn_smart_pointer();
 }
 
 fn learn_minigrep() {
