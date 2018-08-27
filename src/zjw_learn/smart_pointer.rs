@@ -1,8 +1,9 @@
 use self::List::{ Cons, Nil };
 use self::ListRc::{ ConsRc, NilRc };
 use self::ListRf::{ ConsRf, NilRf };
+use self::List1::{ Cons1, Nil1 };
 use std::ops::Deref;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 
 pub fn run() {
@@ -40,20 +41,59 @@ pub fn run() {
     // let c = ConsRc(4, Rc::clone(&a));
     // println!("{:?} \n{:?} \n{:?}", a, b, c);
 
-    // let a = RefCell::new([1,2,3,4]);
-    // a.borrow_mut()[0] += 10;
-    // println!("{:?}", a);
+    let a = RefCell::new([1,2,3,4]);
+    a.borrow_mut()[0] += 10;
+    println!("{:?}", a); // 对比下面
+    let a = RefCell::new(1);
+    *a.borrow_mut() += 10;
+    println!("{:?}", a);
 
-    let value = Rc::new(RefCell::new(5)); // 不可变，且可被公用
+    let value = Rc::new(RefCell::new(5)); // 可变，且可被公用
     let a = Rc::new(ConsRf(Rc::clone(&value), Rc::new(NilRf)));
     let b = ConsRf(Rc::new(RefCell::new(6)), Rc::clone(&a));
     let c = ConsRf(Rc::new(RefCell::new(10)), Rc::clone(&a));
-
     *value.borrow_mut() += 10;
-
     println!("a after = {:?}", a);
     println!("b after = {:?}", b);
     println!("c after = {:?}", c);
+
+    // 演示：循环引用
+    let a = Rc::new(Cons1(5, RefCell::new(Rc::new(Nil1))));
+    println!("a counts {}", Rc::strong_count(&a));
+    println!("a tail {:?}", a.tail());
+    let b = Rc::new(Cons1(10, RefCell::new(Rc::clone(&a))));
+    println!("b counts {}", Rc::strong_count(&b));
+    println!("b tail {:?}", b.tail());
+    // 此举导致 循环引用，栈溢出
+    if let Some(link) = a.tail() {
+        *link.borrow_mut() = Rc::clone(&b);
+    }
+    println!("b rc count after changing a = {}", Rc::strong_count(&b));
+    println!("a rc count after changing a = {}", Rc::strong_count(&a));
+    // println!("b tail {:?}", b.tail()); // 栈溢出
+
+    // 演示弱引用
+    let leaf = Rc::new(Node {
+        value: 1,
+        parent: RefCell::new(Weak::new()),
+        children: RefCell::new(vec![]),
+    });
+    println!("leaf parent: {:?}", leaf.parent.borrow().upgrade());
+    let branch = Rc::new(Node {
+        value: 6,
+        parent: RefCell::new(Weak::new()),
+        children: RefCell::new(vec![Rc::clone(&leaf)]),
+    });
+    *leaf.parent.borrow_mut() = Rc::downgrade(&branch); // downgrade 产生弱引用
+    {
+        branch; // 强制使branch过期
+    }
+    println!(
+        "leaf strong = {}, weak = {}",
+        Rc::strong_count(&leaf),
+        Rc::weak_count(&leaf),
+    );
+    println!("leaf parent: {:?}", leaf.parent.borrow().upgrade());
 }
 
 // Box 用来实现递归
@@ -74,7 +114,8 @@ enum ListRc {
 // refcell
 #[derive(Debug)]
 enum ListRf {
-    ConsRf(Rc<RefCell<i32>>, Rc<ListRf>),
+    ConsRf(Rc<RefCell<i32>>, Rc<ListRf>), // 一个公共的、可变的i32字段
+    // ConsRf(RefCell<i32>, Rc<ListRf>),
     NilRf,
 }
 
@@ -169,4 +210,28 @@ mod tests {
 
         assert_eq!(mock_messenger.messages.borrow().len(), 1);
     }
+}
+
+// 引用循环，内存泄漏，式安全的？
+#[derive(Debug)]
+enum List1 {
+    Cons1(i32, RefCell<Rc<List1>>),
+    Nil1,
+}
+
+impl List1 {
+    fn tail(&self) -> Option<&RefCell<Rc<List1>>> {
+        match *self {
+            Cons1(_, ref item) => Some(item),
+            Nil1 => None,
+        }
+    }
+}
+
+// Weak<T> 树结点的子父节点
+#[derive(Debug)]
+struct Node {
+    value: i32,
+    parent: RefCell<Weak<Node>>,
+    children: RefCell<Vec<Rc<Node>>>,
 }
