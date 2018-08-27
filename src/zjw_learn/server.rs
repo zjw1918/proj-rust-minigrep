@@ -14,11 +14,10 @@ pub fn run() {
   let listener = TcpListener::bind(address).unwrap();
   let pool = ThreadPool::new(4);
 
-  for stream in listener.incoming() {
+  for stream in listener.incoming().take(10) {
     let stream = stream.unwrap();
 
     pool.execute(|| {
-      // println!("Connection established");
       handle_connection(stream);
     });
   }
