@@ -5,6 +5,10 @@ mod zjw_learn;
 use std::env;
 use minigrep::Config;
 use std::process;
+mod http_test;
+
+#[macro_use]
+extern crate serde_derive;
 
 fn main() {
     println!("Hello, world >>>");
@@ -13,7 +17,9 @@ fn main() {
     // zjw_learn::run_learn_smart_pointer();
     // zjw_learn::run_learn_concurrent();
     // zjw_learn::run_learn_unsafe();
-    zjw_learn::run_learn_server();
+    // zjw_learn::run_learn_server();
+    // zjw_learn::run_learn_http_request_json();
+    http_test::run();
 }
 
 fn learn_minigrep() {
